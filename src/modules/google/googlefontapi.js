@@ -48,7 +48,7 @@ goog.scope(function () {
 
     domHelper.loadStylesheet(fontApiUrlBuilder.build(), waiter.startWaitingLoad());
     waiter.waitWhileNeededThen(function() {
-      onReady(fontApiParser.getFonts(), fontApiParser.getFontTestStrings(), GoogleFontApi.METRICS_COMPATIBLE_FONTS);
+      onReady(fontApiParser.getFonts(), this.configuration_['text'] || fontApiParser.getFontTestStrings(), GoogleFontApi.METRICS_COMPATIBLE_FONTS);
     });
   };
 });
