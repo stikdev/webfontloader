@@ -41,6 +41,7 @@ goog.scope(function () {
         this.configuration_['text']
     );
     var fontFamilies = this.configuration_['families'];
+    var fontTestStrings = this.configuration_['text']
     fontApiUrlBuilder.setFontFamilies(fontFamilies);
 
     var fontApiParser = new FontApiParser(fontFamilies);
@@ -48,7 +49,7 @@ goog.scope(function () {
 
     domHelper.loadStylesheet(fontApiUrlBuilder.build(), waiter.startWaitingLoad());
     waiter.waitWhileNeededThen(function() {
-      onReady(fontApiParser.getFonts(), fontApiParser.getFontTestStrings(), GoogleFontApi.METRICS_COMPATIBLE_FONTS);
+      onReady(fontApiParser.getFonts(), fontTestStrings || fontApiParser.getFontTestStrings(), GoogleFontApi.METRICS_COMPATIBLE_FONTS);
     });
   };
 });
