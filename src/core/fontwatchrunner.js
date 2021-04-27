@@ -25,10 +25,10 @@ webfont.FontWatchRunner = function(activeCallback, inactiveCallback, domHelper,
 
   this.metricCompatibleFonts_ = opt_metricCompatibleFonts || null;
 
-  this.fontRulerA_ = null;
-  this.fontRulerB_ = null;
-  this.lastResortRulerA_ = null;
-  this.lastResortRulerB_ = null;
+  this.fontRulersA_ = [];
+  this.fontRulersB_ = [];
+  this.lastResortRulersA_ = [];
+  this.lastResortRulersB_ = [];
 
   this.setupRulers_();
 };
@@ -90,25 +90,38 @@ goog.scope(function () {
    * @private
    */
   FontWatchRunner.prototype.setupRulers_ = function() {
-    this.fontRulerA_ = new FontRuler(this.domHelper_, this.fontTestString_);
-    this.fontRulerB_ = new FontRuler(this.domHelper_, this.fontTestString_);
-    this.lastResortRulerA_ = new FontRuler(this.domHelper_, this.fontTestString_);
-    this.lastResortRulerB_ = new FontRuler(this.domHelper_, this.fontTestString_);
+    // Make a ruler for each character in the test string
+    const testChars = this.fontTestString_.split('')
 
-    this.fontRulerA_.setFont(new Font(this.font_.getName() + ',' + FontWatchRunner.LastResortFonts.SERIF, this.font_.getVariation()));
-    this.fontRulerB_.setFont(new Font(this.font_.getName() + ',' + FontWatchRunner.LastResortFonts.SANS_SERIF, this.font_.getVariation()));
-    this.lastResortRulerA_.setFont(new Font(FontWatchRunner.LastResortFonts.SERIF, this.font_.getVariation()));
-    this.lastResortRulerB_.setFont(new Font(FontWatchRunner.LastResortFonts.SANS_SERIF, this.font_.getVariation()));
-
-    this.fontRulerA_.insert();
-    this.fontRulerB_.insert();
-    this.lastResortRulerA_.insert();
-    this.lastResortRulerB_.insert();
+    this.fontRulersA_ = testChars.map((char) => {
+      const ruler = new FontRuler(this.domHelper_, char)
+      ruler.setFont(new Font(this.font_.getName() + ',' + FontWatchRunner.LastResortFonts.SERIF, this.font_.getVariation()));
+      ruler.insert();
+      return ruler
+    })
+    this.fontRulersB_ = testChars.map((char) => {
+      const ruler = new FontRuler(this.domHelper_, char)
+      ruler.setFont(new Font(this.font_.getName() + ',' + FontWatchRunner.LastResortFonts.SANS_SERIF, this.font_.getVariation()));
+      ruler.insert();
+      return ruler
+    })
+    this.lastResortRulersA_ = testChars.map((char) => {
+      const ruler = new FontRuler(this.domHelper_, char)
+      ruler.setFont(new Font(FontWatchRunner.LastResortFonts.SERIF, this.font_.getVariation()));
+      ruler.insert();
+      return ruler
+    })
+    this.lastResortRulersB_ = testChars.map((char) => {
+      const ruler = new FontRuler(this.domHelper_, char)
+      ruler.setFont(new Font(FontWatchRunner.LastResortFonts.SANS_SERIF, this.font_.getVariation()));
+      ruler.insert();
+      return ruler
+    })
   };
 
   FontWatchRunner.prototype.start = function() {
-    this.lastResortWidths_[FontWatchRunner.LastResortFonts.SERIF] = this.lastResortRulerA_.getWidth();
-    this.lastResortWidths_[FontWatchRunner.LastResortFonts.SANS_SERIF] = this.lastResortRulerB_.getWidth();
+    this.lastResortWidths_[FontWatchRunner.LastResortFonts.SERIF] = this.lastResortRulersA_.map((ruler) => (ruler.getWidth()));
+    this.lastResortWidths_[FontWatchRunner.LastResortFonts.SANS_SERIF] = this.lastResortRulersB_.map((ruler) => (ruler.getWidth()));
 
     this.started_ = goog.now();
 
@@ -120,11 +133,12 @@ goog.scope(function () {
    *
    * @private
    * @param {number} width
+   * @param {number} index The character's index in the test string
    * @param {string} lastResortFont
    * @return {boolean}
    */
-  FontWatchRunner.prototype.widthMatches_ = function(width, lastResortFont) {
-    return width === this.lastResortWidths_[lastResortFont];
+  FontWatchRunner.prototype.widthMatches_ = function(width, index, lastResortFont) {
+    return width === this.lastResortWidths_[lastResortFont][index];
   };
 
   /**
@@ -134,13 +148,14 @@ goog.scope(function () {
    * @private
    * @param {number} a
    * @param {number} b
+   * @param {number} index The character's index in the test string
    * @return {boolean}
    */
-  FontWatchRunner.prototype.widthsMatchLastResortWidths_ = function(a, b) {
+  FontWatchRunner.prototype.widthsMatchLastResortWidths_ = function(a, b, index) {
     for (var font in FontWatchRunner.LastResortFonts) {
       if (FontWatchRunner.LastResortFonts.hasOwnProperty(font)) {
-        if (this.widthMatches_(a, FontWatchRunner.LastResortFonts[font]) &&
-            this.widthMatches_(b, FontWatchRunner.LastResortFonts[font])) {
+        if (this.widthMatches_(a, index, FontWatchRunner.LastResortFonts[font]) &&
+            this.widthMatches_(b, index, FontWatchRunner.LastResortFonts[font])) {
           return true;
         }
       }
@@ -163,11 +178,12 @@ goog.scope(function () {
    * @private
    * @param {number} a
    * @param {number} b
+   * @param {number} index The character's index in the test string
    * @return {boolean}
    */
-  FontWatchRunner.prototype.isFallbackFont_ = function (a, b) {
-    return this.widthMatches_(a, FontWatchRunner.LastResortFonts.SERIF) &&
-           this.widthMatches_(b, FontWatchRunner.LastResortFonts.SANS_SERIF);
+  FontWatchRunner.prototype.isFallbackFont_ = function (a, b, index) {
+    return this.widthMatches_(a, index, FontWatchRunner.LastResortFonts.SERIF) &&
+           this.widthMatches_(b, index, FontWatchRunner.LastResortFonts.SANS_SERIF);
   };
 
   /**
@@ -189,10 +205,11 @@ goog.scope(function () {
    * @private
    * @param {number} a
    * @param {number} b
+   * @param {number} index The character's index in the test string
    * @return {boolean}
    */
-  FontWatchRunner.prototype.isLastResortFont_ = function (a, b) {
-    return FontWatchRunner.hasWebKitFallbackBug() && this.widthsMatchLastResortWidths_(a, b);
+  FontWatchRunner.prototype.isLastResortFont_ = function (a, b, index) {
+    return FontWatchRunner.hasWebKitFallbackBug() && this.widthsMatchLastResortWidths_(a, b, index);
   };
 
   /**
@@ -216,21 +233,34 @@ goog.scope(function () {
    * @private
    */
   FontWatchRunner.prototype.check_ = function() {
-    var widthA = this.fontRulerA_.getWidth();
-    var widthB = this.fontRulerB_.getWidth();
+    let isFontLoaded = true
 
-    if (this.isFallbackFont_(widthA, widthB) || this.isLastResortFont_(widthA, widthB) || this.isInvalidFont_(widthA, widthB)) {
-      if (this.hasTimedOut_()) {
-        if (this.isLastResortFont_(widthA, widthB) && this.isMetricCompatibleFont_()) {
-          this.finish_(this.activeCallback_);
+    for (let index = 0; index < this.fontRulersA_.length; index += 1) {
+      var widthA = this.fontRulersA_[index].getWidth();
+      var widthB = this.fontRulersB_[index].getWidth();
+
+      if (this.isFallbackFont_(widthA, widthB, index) || this.isLastResortFont_(widthA, widthB, index) || this.isInvalidFont_(widthA, widthB)) {
+        if (this.hasTimedOut_()) {
+          if (this.isLastResortFont_(widthA, widthB, index) && this.isMetricCompatibleFont_()) {
+            // Only count as true if none of the previous characters were false
+            isFontLoaded = isFontLoaded && true
+          } 
         } else {
-          this.finish_(this.inactiveCallback_);
+          // If any character comes back false, it isn't loaded
+          isFontLoaded = false
         }
-     } else {
-        this.asyncCheck_();
+      } else {
+        // Only count as true if none of the previous characters were false
+        isFontLoaded = isFontLoaded && true 
       }
-    } else {
+    }
+
+    if (isFontLoaded && !this.hasTimedOut_()) {
       this.finish_(this.activeCallback_);
+    } else if (this.hasTimedOut_()) {
+      this.finish_(this.inactiveCallback_);
+    } else {
+      this.asyncCheck_();
     }
   };
 
@@ -251,10 +281,10 @@ goog.scope(function () {
     // Remove elements and trigger callback (which adds active/inactive class) asynchronously to avoid reflow chain if
     // several fonts are finished loading right after each other
     setTimeout(goog.bind(function () {
-      this.fontRulerA_.remove();
-      this.fontRulerB_.remove();
-      this.lastResortRulerA_.remove();
-      this.lastResortRulerB_.remove();
+      this.fontRulersA_.forEach((ruler) => {ruler.remove()});
+      this.fontRulersB_.forEach((ruler) => {ruler.remove()});
+      this.lastResortRulersA_.forEach((ruler) => {ruler.remove()});
+      this.lastResortRulersB_.forEach((ruler) => {ruler.remove()});
       callback(this.font_);
     }, this), 0);
   };
